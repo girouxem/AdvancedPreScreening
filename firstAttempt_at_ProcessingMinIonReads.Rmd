@@ -1,0 +1,14 @@
+---
+title: "MinIonTest"
+author: "Emily Giroux"
+date: "12/17/2021"
+output: html_document
+---
+
+```{r}
+rawPath <- "/isilon/cfia-ottawa-fallowfield/users/girouxeml/PIRL_working_directory/advancedPreScreening/data/raw/17Dec2021_HortonAllLongAmpRun2_cat.fastq"
+rawSummary <- "/isilon/cfia-ottawa-fallowfield/users/girouxeml/PIRL_working_directory/advancedPreScreening/data/raw/sequencing_summary_17Dec2021_HortonAllLongAmpRun2_cat.txt"
+
+
+```
+
