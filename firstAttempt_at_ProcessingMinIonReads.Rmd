@@ -16,105 +16,77 @@ opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy = TRUE, fig.align='center',
                message=FALSE, quietly=TRUE, results='hide', warn.conflicts=FALSE, 
                warning=FALSE)
 ```
-
-```{r, installation1, eval=TRUE, echo=FALSE, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
-r <- getOption("repos")
-r["CRAN"] <- "http://cran.us.r-project.org"
-options(repos = r)
-
-if (!requireNamespace("BiocManager"))
-    install.packages("BiocManager")
-BiocManager::install()
-
-library("BiocManager")
-.cran_packages <- c("cowplot", "data.table", "ggplot2", "knitr", "reticulate", "rprojroot")
-.bioc_packages <- c("ape", "BarcodingR", "BiocStyle", "biomartr", "Biostrings", "dada2",  
-                    "GenomicFeatures","phyloseq", "ShortRead")
-.inst <- .cran_packages %in% installed.packages()
-if(any(!.inst)) {
-   install.packages(.cran_packages[!.inst])
-}
-.inst <- .bioc_packages %in% installed.packages()
-if(any(!.inst)) {
-  BiocManager::install(.bioc_packages[!.inst], ask = FALSE)
-}
+Project Name Setting:
+```{r}
+analysis <- "AdvancedPreScreening"
 ```
 
-**Load packages into session, and print package versions:**
-```{r, showBiocPackages, echo=FALSE, eval=TRUE, include=TRUE, results='hold', cache=TRUE}
-sapply(c(.cran_packages, .bioc_packages), require, character.only = TRUE)
-```
 Source our custom R scripts:    
 For this we will use the rprojroot package to set the directory structures. This will help us when finding our files to source functions. We specify ours is an RStudio project. The root object contains a function that will help us locate our package R files regardless of our current working directory.
 ```{r sourcing_my_functions, echo=FALSE, eval=TRUE, include=FALSE, cache=TRUE}
 library("rprojroot")
 root <- rprojroot::is_rstudio_project
+
 scriptsPath <- root$make_fix_file(".")("R")
 scripts  <- dir(root$find_file("R", path = root$find_file()))
-scriptsl <- paste(scriptsPath, scripts, sep = "//")
-lapply(scriptsl, source)
+scriptsList <- paste(scriptsPath, scripts, sep = "//")
+lapply(scriptsList, source)
+
+scriptsPyPath <- root$make_fix_file(".")("pythonScripts")
+scriptsPy <- dir(root$find_file(scriptsPyPath, path = root$find_file()))
+scriptsPyList <- paste(scriptsPyPath, scriptsPy, sep = "//")
+# how to import python scripts into env, the way we do for r scripts using source?
+# lapply(scriptsPyList, source)
+
+imagePath <- root$make_fix_file(".")(paste("../r_environments", analysis, sep = "/"))
+dir.create(imagePath, showWarnings = TRUE, recursive = TRUE)
+images <- dir(root$find_file(imagePath, path = root$find_file())) # if there is already a data file in this directory if not running this for the first time
+imagesList <- paste(imagePath, images, sep = "//")
+load(paste(imagesList, sep = "/")) # you need to bget more specific if you have more than one image saved in this directory
+
+# find environment of the conda path for this script - this one is for using the rstudio env:
+envPath <- root$make_fix_file(".")("../../prog/anaconda3/envs/rstudio")
+dir.create(envPath, showWarnings = TRUE, recursive = TRUE)
+envDirs <- dir(root$find_file(envPath, path = root$find_file()))
+envBinPath <- root$make_fix_file(".")(paste(envPath, "bin", sep = "/"))
+envBinList <- dir(root$find_file(envBinPath, path = root$find_file()))
+pythonPath <- paste(envBinPath, "python", sep = "/")
 ```
 
 Record the path to the environment images directory:
 ```{r importChptImage, echo=TRUE, eval=TRUE, include=FALSE, cache=TRUE}
-sharedPath <- "/isilon/cfia-ottawa-fallowfield/users/girouxeml/PIRL_working_directory/"
-analysis <- "advancedPreScreening/"
-sharedPathAn <- paste(sharedPath, analysis, sep = "")
-imageDirPath <- "/home/CFIA-ACIA/girouxeml/GitHub_Repos/r_environments/AdvancedPreScreening/"
-```
-Set path structure depending on computer used to access biocluster:    
-1 = Windows CFIA computer via ssh terminal    
-2 = Linux personal computer    
-3 = Windows CFIA computer via RStudio Windows installation     
-```{r}
-computer <- 1
+library("rprojroot")
+sharedPath <- root$make_fix_file(".")("../../PIRL_working_directory")
+dir.create(sharedPath, showWarnings = TRUE, recursive = TRUE)
+sharedPathDirs <- dir(root$find_file(sharedPath, path = root$find_file()))
+sharedPathAn <- paste(sharedPath, analysis, sep = "/")
+dir.create(sharedPathAn, showWarnings = TRUE, recursive = TRUE)
+
+databasePath <- root$make_fix_file(".")(paste("../../Databases", analysis, sep = "/"))
+dir.create(databasePath, showWarnings = TRUE, recursive = TRUE)
+databasesPathDir <- dir(root$find_file(databasePath, path = root$find_file()))
+
+refSeqDB <- paste(databasePath, "refSeq", sep = "/")
+gbDB <- paste(databasePath, "genbank", sep = "/")
+ensemblDB <- paste(databasePath, "ensembl", sep = "/")
+
+subfolder_names <- c("/refSeq", "/genbank", "/ensemble")
+for (j in 1:length(subfolder_names)){
+  folder <- dir.create(paste0(databasePath, subfolder_names[j]), showWarnings = TRUE, recursive = FALSE)
+}
 ```
 
-Set project to work on:
 ```{r}
-analysis <- "advancedPreScreening/"
-```
-
-Set up the Isilon path:    
-# Paths for when working from Linux or CFIA laptops differ because the linux remote connection to the Biocluster requires an ssh connection while the path changes when using the RStudio Windows edition.
-isilonPathBiocluster <- "/isilon/cfia-ottawa-fallowfield/users/girouxeml/"
-isilonPathLin <- "/run/user/1000/gvfs/sftp:host=biocluster.agr.gc.ca/home/CFIA-ACIA/girouxeml/"
-isilonPathRWin <- "\\\\skyemci01-bicoe.efs.agr.gc.ca/cfia-ottawa-fallowfield/users/girouxeml/"
-```{r}
-if(computer == 1){
-  isilonPath <- "/isilon/cfia-ottawa-fallowfield/users/girouxeml/"
-  print('Your isilon path is based on using your CFIA computer and rstudio via ssh')} else if 
-(computer == 2){
-  isilonPath <- "/run/user/1000/gvfs/sftp:host=biocluster.agr.gc.ca/home/CFIA-ACIA/girouxeml/"
-  print('Your isilon path is based on using your Linux computer')} else if 
-(computer == 3){
-  isilonPath <- "\\\\skyemci01-bicoe.efs.agr.gc.ca/cfia-ottawa-fallowfield/users/girouxeml/"
-  print('Your isilon path is based on using your Windows version of RStudio on your work computer. Your path to the isilon is:')
-  }
-isilonPath
-# Based on the computer-type set isilon path, all paths hereon are automatically set.
-sharedPath <- paste(isilonPath, "PIRL_working_directory/", sep = "")
-sharedPathAn <- paste(sharedPath, analysis, sep = "")
-imageDirPath <- paste(isilonPath, "GitHub_Repos/r_environments/AdvancedPreScreening/", sep = "")
-databasePath <- paste(isilonPath, "Databases/", sep = "")
-apsDB <- paste(databasePath, "APS/", sep = "")
-refSeqDB <- paste(apsDB, "refSeq", sep = "")
-gbDB <- paste(apsDB, "genbank", sep = "")
-ensemblDB <- paste(apsDB, "ensembl", sep = "")
-```
-
-Create and save the first image:
-```{r}
-imageA <- "aps_test.RData"
-# save.image(paste(imageDirPath, imageA, sep = ""))
-load(paste(imageDirPath, imageA, sep = ""))
+imageA <- "aps_test.RData" # should provide this variable in initial chunk where image directory is specified - but concern is that there may be the need to divide and create different files within the same anaylsis....
+save.image(paste(imagePath, imageA, sep = "/")) # you need to bget more specific if you have more than one image saved in this directory
 ```
 
 Reference genomes to obtain for target species, read csv:
 ```{r}
+library("rprojroot")
 library("data.table")
 targetCsv <- "targetPathogens.csv"
-csvPath <- paste(sharedPathAn, targetCsv, sep = "")
+csvPath <- paste(sharedPathAn, targetCsv, sep = "/")
 targetMeta <- data.table::fread(csvPath, sep = "auto", header = TRUE)
 ```
 
@@ -126,13 +98,6 @@ options(timeout = 30000000)
 # List available database:
 biomartr::listNCBIDatabases(db = "all")
 # also try BarcodingR: https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12682
-```
-
-```{r}
-dir.create(apsDB, showWarnings = TRUE, recursive = FALSE)
-dir.create(paste(apsDB, "refSeq", sep = ""), showWarnings = TRUE, recursive = FALSE)
-dir.create(paste(apsDB, "genbank", sep = ""), showWarnings = TRUE, recursive = FALSE)
-dir.create(paste(apsDB, "ensembl", sep = ""), showWarnings = TRUE, recursive = FALSE)
 ```
 
 RefSeq Genome Check:
@@ -164,19 +129,10 @@ for(i in 1:nrow(refSeqGens)){
 }
 ```
 
-This option retrieves all the genomes, even when there are multiple accessions and results in over 1000 genomes! I'm not sure if there are specific reasons to exclude older versions of genomes - so I will not use this method for now. Set up as a background job. Same style for Genbank retrieval.
-```{r}
-# library(biomartr)
-# Flatten list of lists when pulling out accessions for each row:
-# refSeqAccns <- do.call(c, unlist(list(refSeqGens$assmblyAccn), recursive = FALSE)) # 
-# biomartr::getGenomeSet(db = "refseq", refSeqAccns, reference = FALSE, release = NULL,
-#                        clean_retrieval = FALSE, gunzip = FALSE, update = FALSE, path = refSeqDB,
-#                        assembly_type = "toplevel")
-```
 
 Save env image:
 ```{r}
-save.image(paste(imageDirPath, imageA, sep = ""))
+save.image(paste(imagePath, imageA, sep = "/"))
 ```
 
 Ensembl Genome Check:
@@ -208,7 +164,7 @@ for(i in 1:nrow(ensemblGens)){
 
 Save env image:
 ```{r}
-save.image(paste(imageDirPath, imageA, sep = ""))
+save.image(paste(imagePath, imageA, sep = "/"))
 ```
     
 GenBank Genome Check:
@@ -241,7 +197,7 @@ for(i in 1:nrow(gbGens)){
 
 Save env image:
 ```{r}
-save.image(paste(imageDirPath, imageA, sep = ""))
+save.image(paste(imagePath, imageA, sep = "/"))
 ```
 
 Species with no Genomes In GenBank and RefSeq:
@@ -257,25 +213,20 @@ getGroups(db = "refseq", kingdom = "fungi")
 ```
 
 ```{r}
-nearestGenPyPath <- paste(isilonPath, "prog/scripts/nearest_genomes.py", sep = "")
-cmd <- paste("python ", nearestGenPyPath, sep = "")
-system(cmd)
-```
-
-Trying to install package reticultae so that I can write chunks of python, but install fails with non-zero exit status.    
-Tried to go for another package that may provide the dependencies, that include matrix.so, other than perl-math-matrix - which fails.
-Tried using $ conda install -c conda-forge r-matrix = succes!!
-```{r}
-install.packages("reticulate")
+# cmd <- paste("python ", nearestGenPyPath, sep = "")
+# system(cmd)
 ```
 
 ```{r}
-nearestGenPyPath <- paste(isilonPath, "prog/scripts/nearest_genomes.py", sep = "")
+nearestGenPyPath <- paste(scriptsPyPath, "nearest_genomes.py", sep = "/")
 ```
 
 ```{r}
 library("reticulate")
-use_python("/isilon/cfia-ottawa-fallowfield/users/girouxeml/prog/anaconda3/envs/rstudio/bin/python")
+use_python(pythonPath)
+
+# Note the problem is that in this chunk, now a python env because of loading reticulate, the r env variables, such as all the paths I've defined (pythonPath, nearestGenPyPath, ect), are not inherited and need to be re-introduced. Need to see how to import these variables so that I don't need to redefine them.
+source_python(nearestGenPyPath)
 ```
 
 Using the new NCBI's datasets API to get the nearest available reference genomes for a given taxon or organism name.
