@@ -3,12 +3,514 @@ title: "MinIonTest"
 author: "Emily Giroux"
 date: "12/17/2021"
 output: html_document
+fontsize: 11pt
+geometry: margin=1in
+urlcolor: blue
+header-includes: \usepackage{xcolor}
 ---
+
+```{r, global_options, eval=TRUE, echo=FALSE, cache=TRUE}
+library(knitr)
+opts_chunk$set(tidy.opts=list(width.cutoff=80), tidy = TRUE, fig.align='center',
+               cache=FALSE, collapse=TRUE, echo=FALSE, eval=FALSE, include=FALSE,
+               message=FALSE, quietly=TRUE, results='hide', warn.conflicts=FALSE, 
+               warning=FALSE)
+```
+
+```{r, installation1, eval=TRUE, echo=FALSE, include=FALSE, message=FALSE, warning=FALSE, cache=TRUE}
+r <- getOption("repos")
+r["CRAN"] <- "http://cran.us.r-project.org"
+options(repos = r)
+
+if (!requireNamespace("BiocManager"))
+    install.packages("BiocManager")
+BiocManager::install()
+
+library("BiocManager")
+.cran_packages <- c("cowplot", "data.table", "ggplot2", "knitr", "reticulate", "rprojroot")
+.bioc_packages <- c("ape", "BarcodingR", "BiocStyle", "biomartr", "Biostrings", "dada2",  
+                    "GenomicFeatures","phyloseq", "ShortRead")
+.inst <- .cran_packages %in% installed.packages()
+if(any(!.inst)) {
+   install.packages(.cran_packages[!.inst])
+}
+.inst <- .bioc_packages %in% installed.packages()
+if(any(!.inst)) {
+  BiocManager::install(.bioc_packages[!.inst], ask = FALSE)
+}
+```
+
+**Load packages into session, and print package versions:**
+```{r, showBiocPackages, echo=FALSE, eval=TRUE, include=TRUE, results='hold', cache=TRUE}
+sapply(c(.cran_packages, .bioc_packages), require, character.only = TRUE)
+```
+Source our custom R scripts:    
+For this we will use the rprojroot package to set the directory structures. This will help us when finding our files to source functions. We specify ours is an RStudio project. The root object contains a function that will help us locate our package R files regardless of our current working directory.
+```{r sourcing_my_functions, echo=FALSE, eval=TRUE, include=FALSE, cache=TRUE}
+library("rprojroot")
+root <- rprojroot::is_rstudio_project
+scriptsPath <- root$make_fix_file(".")("R")
+scripts  <- dir(root$find_file("R", path = root$find_file()))
+scriptsl <- paste(scriptsPath, scripts, sep = "//")
+lapply(scriptsl, source)
+```
+
+Record the path to the environment images directory:
+```{r importChptImage, echo=TRUE, eval=TRUE, include=FALSE, cache=TRUE}
+sharedPath <- "/isilon/cfia-ottawa-fallowfield/users/girouxeml/PIRL_working_directory/"
+analysis <- "advancedPreScreening/"
+sharedPathAn <- paste(sharedPath, analysis, sep = "")
+imageDirPath <- "/home/CFIA-ACIA/girouxeml/GitHub_Repos/r_environments/AdvancedPreScreening/"
+```
+Set path structure depending on computer used to access biocluster:    
+1 = Windows CFIA computer via ssh terminal    
+2 = Linux personal computer    
+3 = Windows CFIA computer via RStudio Windows installation     
+```{r}
+computer <- 1
+```
+
+Set project to work on:
+```{r}
+analysis <- "advancedPreScreening/"
+```
+
+Set up the Isilon path:    
+# Paths for when working from Linux or CFIA laptops differ because the linux remote connection to the Biocluster requires an ssh connection while the path changes when using the RStudio Windows edition.
+isilonPathBiocluster <- "/isilon/cfia-ottawa-fallowfield/users/girouxeml/"
+isilonPathLin <- "/run/user/1000/gvfs/sftp:host=biocluster.agr.gc.ca/home/CFIA-ACIA/girouxeml/"
+isilonPathRWin <- "\\\\skyemci01-bicoe.efs.agr.gc.ca/cfia-ottawa-fallowfield/users/girouxeml/"
+```{r}
+if(computer == 1){
+  isilonPath <- "/isilon/cfia-ottawa-fallowfield/users/girouxeml/"
+  print('Your isilon path is based on using your CFIA computer and rstudio via ssh')} else if 
+(computer == 2){
+  isilonPath <- "/run/user/1000/gvfs/sftp:host=biocluster.agr.gc.ca/home/CFIA-ACIA/girouxeml/"
+  print('Your isilon path is based on using your Linux computer')} else if 
+(computer == 3){
+  isilonPath <- "\\\\skyemci01-bicoe.efs.agr.gc.ca/cfia-ottawa-fallowfield/users/girouxeml/"
+  print('Your isilon path is based on using your Windows version of RStudio on your work computer. Your path to the isilon is:')
+  }
+isilonPath
+# Based on the computer-type set isilon path, all paths hereon are automatically set.
+sharedPath <- paste(isilonPath, "PIRL_working_directory/", sep = "")
+sharedPathAn <- paste(sharedPath, analysis, sep = "")
+imageDirPath <- paste(isilonPath, "GitHub_Repos/r_environments/AdvancedPreScreening/", sep = "")
+databasePath <- paste(isilonPath, "Databases/", sep = "")
+apsDB <- paste(databasePath, "APS/", sep = "")
+refSeqDB <- paste(apsDB, "refSeq", sep = "")
+gbDB <- paste(apsDB, "genbank", sep = "")
+ensemblDB <- paste(apsDB, "ensembl", sep = "")
+```
+
+Create and save the first image:
+```{r}
+imageA <- "aps_test.RData"
+# save.image(paste(imageDirPath, imageA, sep = ""))
+load(paste(imageDirPath, imageA, sep = ""))
+```
+
+Reference genomes to obtain for target species, read csv:
+```{r}
+library("data.table")
+targetCsv <- "targetPathogens.csv"
+csvPath <- paste(sharedPathAn, targetCsv, sep = "")
+targetMeta <- data.table::fread(csvPath, sep = "auto", header = TRUE)
+```
+
+Need to obtain reference genomes for the target pathogens in the target Meta table:
+```{r}
+library("biomartr")
+# set default timeout setting from 60s to at least 3000000 s before running any retrieval functions:
+options(timeout = 30000000)
+# List available database:
+biomartr::listNCBIDatabases(db = "all")
+# also try BarcodingR: https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12682
+```
+
+```{r}
+dir.create(apsDB, showWarnings = TRUE, recursive = FALSE)
+dir.create(paste(apsDB, "refSeq", sep = ""), showWarnings = TRUE, recursive = FALSE)
+dir.create(paste(apsDB, "genbank", sep = ""), showWarnings = TRUE, recursive = FALSE)
+dir.create(paste(apsDB, "ensembl", sep = ""), showWarnings = TRUE, recursive = FALSE)
+```
+
+RefSeq Genome Check:
+```{r}
+library("biomartr")
+for(i in 1:nrow(targetMeta)){
+  res <- biomartr::is.genome.available(db = "refseq", organism = targetMeta$SpeciesName[i])
+  targetMeta$genRefSeq[i] <- res
+  }
+refSeqGens <- targetMeta[targetMeta$genRefSeq == "TRUE",]
+for(i in 1:nrow(refSeqGens)){
+  res <- biomartr::is.genome.available(db = "refseq", organism = refSeqGens$SpeciesName[i], details = TRUE)
+  refSeqGens$assmblyAccn[i] <- res
+}
+```
+RefSeq Genome Download of most recent version. Set up as a background job (Don't copy results - just double-check download folder has all genomes downloaded):
+```{r}
+options(timeout = 300000000)
+library(biomartr)
+for(i in 1:nrow(refSeqGens)){
+  biomartr::getGenomeSet(db = "refseq", refSeqGens$SpeciesName[i], reference = FALSE, release = NULL, 
+                         clean_retrieval = TRUE, gunzip = FALSE, update = FALSE, path = refSeqDB, 
+                         assembly_type = "toplevel")
+  biomartr::getAssemblyStats(db = "refseq", refSeqGens$SpeciesName[i], reference = FALSE, 
+                             type = "download", 
+                             #path = paste(refSeqDB, "/genomeassembly_stats", sep = ""))
+                             path = refSeqDB)
+  warnings()
+}
+```
+
+This option retrieves all the genomes, even when there are multiple accessions and results in over 1000 genomes! I'm not sure if there are specific reasons to exclude older versions of genomes - so I will not use this method for now. Set up as a background job. Same style for Genbank retrieval.
+```{r}
+# library(biomartr)
+# Flatten list of lists when pulling out accessions for each row:
+# refSeqAccns <- do.call(c, unlist(list(refSeqGens$assmblyAccn), recursive = FALSE)) # 
+# biomartr::getGenomeSet(db = "refseq", refSeqAccns, reference = FALSE, release = NULL,
+#                        clean_retrieval = FALSE, gunzip = FALSE, update = FALSE, path = refSeqDB,
+#                        assembly_type = "toplevel")
+```
+
+Save env image:
+```{r}
+save.image(paste(imageDirPath, imageA, sep = ""))
+```
+
+Ensembl Genome Check:
+```{r}
+for(i in 1:nrow(targetMeta)){
+  res <- biomartr::is.genome.available(db = "ensembl", organism = targetMeta$SpeciesName[i])
+  targetMeta$genEMBL[i] <- res
+}
+ensemblGens <- targetMeta[targetMeta$genEMBL == "TRUE",]
+for(i in 1:nrow(ensemblGens)){
+  res <- biomartr::is.genome.available(db = "ensembl", organism = ensemblGens$SpeciesName[i], details = TRUE)
+  ensemblGens$assmblyAccn[i] <- res
+}
+```
+
+Ensembl Genome Retrieval: (Run as background job)
+```{r}
+library(biomartr)
+for(i in 1:nrow(ensemblGens)){
+  biomartr::getGenomeSet(db = "ensembl", ensemblGens$SpeciesName[i], reference = FALSE, release = NULL,
+                         clean_retrieval = TRUE, gunzip = FALSE, update = FALSE, path = ensemblDB,
+                         assembly_type = "toplevel")
+    biomartr::getAssemblyStats(db = "ensembl", ensemblGens$SpeciesName[i], reference = FALSE, 
+                             type = "download", 
+                             path = ensemblDB)
+  warnings()
+}
+```
+
+Save env image:
+```{r}
+save.image(paste(imageDirPath, imageA, sep = ""))
+```
+    
+GenBank Genome Check:
+```{r}
+for(i in 1:nrow(targetMeta)){
+  res <- biomartr::is.genome.available(db = "genbank", organism = targetMeta$SpeciesName[i])
+  targetMeta$genDB[i] <- res
+}
+
+gbGens <- targetMeta[targetMeta$genDB == "TRUE",]
+for(i in 1:nrow(gbGens)){
+  res <- biomartr::is.genome.available(db = "genbank", organism = gbGens$SpeciesName[i], details = TRUE)
+  gbGens$assmblyAccn[i] <- res
+}
+```
+
+GenBank Genome Retrieval: (Run as background job)
+```{r}
+library(biomartr)
+for(i in 1:nrow(gbGens)){
+  biomartr::getGenomeSet(db = "genbank", gbGens$SpeciesName[i], reference = FALSE, release = NULL,
+                         clean_retrieval = TRUE, gunzip = FALSE, update = FALSE, path = gbDB,
+                         assembly_type = "toplevel")
+    biomartr::getAssemblyStats(db = "genbank", gbGens$SpeciesName[i], reference = FALSE, 
+                             type = "download", 
+                             path = gbDB)
+  warnings()
+}
+```
+
+Save env image:
+```{r}
+save.image(paste(imageDirPath, imageA, sep = ""))
+```
+
+Species with no Genomes In GenBank and RefSeq:
+```{r}
+library("data.table")
+otherDBs <- targetMeta[targetMeta$genDB == "FALSE" & targetMeta$genRefSeq == "FALSE" & targetMeta$genEMBL == "FALSE",]
+```
+
+Obtain genomes from all species within a genus available from database:
+```{r}
+getKingdoms(db = "refseq")
+getGroups(db = "refseq", kingdom = "fungi")
+```
+
+```{r}
+nearestGenPyPath <- paste(isilonPath, "prog/scripts/nearest_genomes.py", sep = "")
+cmd <- paste("python ", nearestGenPyPath, sep = "")
+system(cmd)
+```
+
+Trying to install package reticultae so that I can write chunks of python, but install fails with non-zero exit status.    
+Tried to go for another package that may provide the dependencies, that include matrix.so, other than perl-math-matrix - which fails.
+Tried using $ conda install -c conda-forge r-matrix = succes!!
+```{r}
+install.packages("reticulate")
+```
+
+```{r}
+nearestGenPyPath <- paste(isilonPath, "prog/scripts/nearest_genomes.py", sep = "")
+```
+
+```{r}
+library("reticulate")
+use_python("/isilon/cfia-ottawa-fallowfield/users/girouxeml/prog/anaconda3/envs/rstudio/bin/python")
+```
+
+Using the new NCBI's datasets API to get the nearest available reference genomes for a given taxon or organism name.
+Input: TAX_ID or Name
+Output:
+    1- The nearest organism with available reference genomes
+    2- Accessions of the reference genomes
+Requirements:
+pip install --upgrade ncbi-datasets-pylib
+```{python}
+import sys
+import ncbi.datasets.openapi
+from ncbi.datasets.openapi.api import taxonomy_api
+from ncbi.datasets.openapi.model.v1_taxonomy_metadata_request import V1TaxonomyMetadataRequest
+from ncbi.datasets.openapi.model.rpc_status import RpcStatus
+from ncbi.datasets.openapi.model.v1_taxonomy_metadata_request_content_type import V1TaxonomyMetadataRequestContentType
+from ncbi.datasets.openapi.model.v1_taxonomy_metadata_response import V1TaxonomyMetadataResponse
+from ncbi.datasets.openapi import ApiClient as DatasetsApiClient
+from ncbi.datasets import GenomeApi
+import pprint
+
+configuration = ncbi.datasets.openapi.Configuration(
+    host="https://api.ncbi.nlm.nih.gov/datasets/v1"
+)
+
+# Optional API KEY
+configuration.api_key_prefix['ApiKeyAuthHeader'] = '7f4be04d1855def2fe2aa44c9e2b94bc9a09' 
+
+def nearest_available_taxon(lineage: list):
+    with DatasetsApiClient() as api_client:
+        api = GenomeApi(api_client)
+        taxon = str(lineage.pop())
+        response = api.assembly_descriptors_by_taxon(
+            taxon=taxon,
+            async_req=True,
+            filters_reference_only = True,
+            )
+        result = response.get().to_dict()
+        if "total_count" in result:
+            accessions = [assembly["assembly"]["assembly_accession"] for assembly in result["assemblies"]]
+            return (taxon, accessions)
+        else:
+            return nearest_available_taxon(lineage)        
+
+
+def fetch_tax_info(tax_or_name):
+    with ncbi.datasets.openapi.ApiClient(configuration) as api_client:
+        api_instance = taxonomy_api.TaxonomyApi(api_client)
+        v1_taxonomy_metadata_request = V1TaxonomyMetadataRequest(
+            taxons=[str(tax_or_name)],
+            returned_content=V1TaxonomyMetadataRequestContentType("COMPLETE"),
+        ) 
+        try:
+            # Use taxonomic identifiers to get taxonomic metadata by post
+            api_response = api_instance.taxonomy_metadata_post(v1_taxonomy_metadata_request)
+            return api_response.to_dict()
+        except ncbi.datasets.openapi.ApiException as e:
+            print(f"Exception when calling TaxonomyApi->taxonomy_metadata_post: {e}")
+
+
+
+if __name__ == "__main__":
+    organism_tax_or_name = "Aleurina"
+    
+    info = fetch_tax_info(organism_tax_or_name)["taxonomy_nodes"][0]["taxonomy"]
+    organism_name = info["organism_name"]
+    organism_taxon = info["tax_id"]
+    children = info["children"]
+    full_lineage = info["lineage"] + [organism_taxon]
+    nearest_taxon, accessions = nearest_available_taxon(full_lineage)
+    nearest_organism_name = fetch_tax_info(nearest_taxon)["taxonomy_nodes"][0]["taxonomy"]["organism_name"]
+
+    
+    print(f"query:             organism({organism_name}) taxon({organism_taxon})")
+    print(f"nearest_available: organism({nearest_organism_name}) taxon({nearest_taxon})")
+    print(f"found {len(accessions)} accessions.")
+    print('-' * 20)
+    pprint.pprint(accessions)
+```
+```{python}
+reticulate::source_python("/isilon/cfia-ottawa-fallowfield/users/girouxeml/GitHub_Repos/AdvancedPreScreening/nearest_genomes.py")
+reticulate::source_python("nearest_genomes.py")
+reticulate::py_run_file("nearest_genomes.py")
+```
+*** over here!!!
+Okay - so now need to figure out how to run and collect the output for this python code for each row in column of metadata... 22nov2022:
+```{r}
+organism_tax_or_name = targetMeta$Genus
+```
+
+
+```{python, file='/isilon/cfia-ottawa-fallowfield/users/girouxeml/GitHub_Repos/AdvancedPreScreening/nearest_genomes.py'}
+organism_tax_or_name = "Alternaria"
+info = fetch_tax_info(organism_tax_or_name)["taxonomy_nodes"][0]["taxonomy"]
+organism_name = info["organism_name"]
+organism_taxon = info["tax_id"]
+children = info["children"]
+full_lineage = info["lineage"] + [organism_taxon]
+nearest_taxon, accessions = nearest_available_taxon(full_lineage)
+nearest_organism_name = fetch_tax_info(nearest_taxon)["taxonomy_nodes"][0]["taxonomy"]["organism_name"]
+
+    print(f"query:             organism({organism_name}) taxon({organism_taxon})")
+    print(f"nearest_available: organism({nearest_organism_name}) taxon({nearest_taxon})")
+    print(f"found {len(accessions)} accessions.")
+    print('-' * 20)
+    pprint.pprint(accessions)
+```
+
+library("rprojroot")
+root <- rprojroot::is_rstudio_project
+scriptsPath <- root$make_fix_file(".")("R")
+scripts  <- dir(root$find_file("R", path = root$find_file()))
+scriptsl <- paste(scriptsPath, scripts, sep = "//")
+lapply(scriptsl, source)
+
+Trying to find a way to get the genomes of all species withing a genus. Some ideas:     
+- taxize github.com/ropensci/taxize, https:://reslp.github.io/blog/Download-Taxinfo-with-R/
+- taxonkit - need to install in conda env, not an R package
+- BarcodingR package - but need to see how useful this would be for us
+
+
+
+
+```{r}
+BiocManager::install("edgeR")
+install.packages(c("taxize", "myTAI", "plyr", "usethis"))
+library("taxize")
+library("myTAI")
+library("plyr")
+taxize::use_entrez()
+usethis::edit_r_environ()
+ENTREZ_KEY='7f4be04d1855def2fe2aa44c9e2b94bc9a09'
+myTAI::taxonomy(organism = targetMeta$Genus[1],
+                db = "ncbi",
+                output = "classification")
+
+
+
+
+```
+
 
 ```{r}
 rawPath <- "/isilon/cfia-ottawa-fallowfield/users/girouxeml/PIRL_working_directory/advancedPreScreening/data/raw/17Dec2021_HortonAllLongAmpRun2_cat.fastq"
 rawSummary <- "/isilon/cfia-ottawa-fallowfield/users/girouxeml/PIRL_working_directory/advancedPreScreening/data/raw/sequencing_summary_17Dec2021_HortonAllLongAmpRun2_cat.txt"
-
-
 ```
+ 
+### Basecalling    
+    
+### Error correction    
+Vaser et al, 2017, "Fast and accurate de novo genome assembly from long uncorrected reads" 
+- used RACON to skip error-correction and get consensus seqs with a SIMD-accelerated, partial-order alignment-based, stand-alone consensus module https://genome.cshlp.org/content/27/5/737
+    
+### consensus-generation   
+
+"A workflow for accurate metabarcoding using nanopore MinION sequencing"
+https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.13561
+
+"build error-corrected consensus sequences"
+Python pipeline "ASHURE" and "OPTICS density-based clustering"for:
+- data processing
+consensus building
+clustering - use reference genomes, primer indices marking each sample, or spatially-related sequence information
+taxonomic assignment
+
+"ASHURE" compared to C3POa workflow for consensus error correction of nanopore reads
+
+see what our median accuracies are
+see how many successfully identified species can be retrieved from the mock sample
+
+
+https://www.sciencedirect.com/science/article/pii/S1872497321000326
+clustering method "NGSpeciesID" tp generate accurate consensus sequence for species identification
+- consensus seqs constructed from a multiple seq alignment software:
+- seq reads are clustered based on seq homology with the aim of generating a single consensus seq for every source of input DNA
+- for species id, this means that one consensus seq should be generated per distinct taxon present within a sample
+- then sompared against a reference database to identify the species
+
+
+
+
+really cool method to increase accuracy is RCA - rolling circle amplification so that replicated sequneces can be used to build concensus sequences with an accuracy of up to 99.5%
+
+metabarcoding and nanopore sequencing could allow researchers wto generate barcode sequence data for community samples in the field without the need to transport or ship samples to a lab.
+
+gff <- read.table(file = gffPathPr, 
+                  sep = "\t", header = F, quote = "", comment.char="#", fill = T)
+                  
+metadata <-  read.table(paste(sharedPathAn, metadataFileAlternate, sep = ""),
+                        sep = ",", header = TRUE, comment.char = "", quote = "", as.is = TRUE)
+                        
+                        
+for(i in 1:nrow(metadataAssembly)){
+    kmerdatTmp <- fread(metadataAssembly$kmerGenieDatPath[i], sep = "auto", header = TRUE)
+    setkey(kmerdatTmp, genomic.kmers)
+    key(kmerdatTmp)
+    maxGenomicKmers <- max(kmerdatTmp$genomic.kmers)
+    metadataAssembly$BestKmerGenie[i] <- kmerdatTmp[.(maxGenomicKmers), .(k)]
+}
+
+
+
+i <- 1
+for(i in 1:length(listABySS_fac_res)){
+    test[[i]] <- fread(listABySS_fac_res[i], sep = "auto", header = TRUE)
+    test[[i]]$ABySSfastq <- basename(test[[i]]$name)
+    print(nrow(test[[i]]))
+}
+
+blastnTmp <- fread(metadataAssemblySubTemp$LawiiMitoBlastPath[i], sep = "auto", header = FALSE)
+
+cazyLawiAll <- fread(metadataAssembly$domtbloutPath[7], sep = "auto", header = TRUE, fill=TRUE)
+
+cazy analysis RstudioScript-June2017_LachnellulaSpp_assemblies.Rmd line 2055
+
+
+library(reshape2)
+library(data.table)
+dbCANList <- metadataAssembly$ParsedmtblPath
+i <- 1
+test <- lapply(dbCANList, fread, sep = "auto", header = FALSE)
+namesCols <- c("family.hmm", "hmm.length", "query.id", "query.length", "e.val",
+               "hmm.start", "hmm.end", "query.start", "query.end", "coverage")
+for(i in 1:length(test)){
+  setnames(test[[i]], 1:10, namesCols)
+}
+
+dbCAN_tempFile <- fread(paste(sharedPathAn, "dbCAN_CAZySubset_AllRefs.csv", sep = ""),
+                        sep="auto", header = TRUE)
+                        
+library(data.table)
+metadataAssemblies <- fread(paste(sharedPathAn, "Lachnellula_genomes_MetadataAssembly.csv", sep = ""),
+                            sep = "auto", header = TRUE)
+metadataAssemblies[, V1:=NULL]
+
+
+
 
