@@ -16,6 +16,7 @@ from ncbi.datasets.openapi.model.v1_taxonomy_metadata_response import V1Taxonomy
 from ncbi.datasets.openapi import ApiClient as DatasetsApiClient
 from ncbi.datasets import GenomeApi
 import pprint
+import argparse # eg testing
 
 configuration = ncbi.datasets.openapi.Configuration(
     host="https://api.ncbi.nlm.nih.gov/datasets/v1"
@@ -55,11 +56,34 @@ def fetch_tax_info(tax_or_name):
         except ncbi.datasets.openapi.ApiException as e:
             print(f"Exception when calling TaxonomyApi->taxonomy_metadata_post: {e}")
 
-
+def nearest_genomes(tax_or_name):
+    organism_tax_or_name = tax_or_name
+    info = fetch_tax_info(organism_tax_or_name)["taxonomy_nodes"][0]["taxonomy"]
+    organism_name = info["organism_name"]
+    organism_taxon = info["tax_id"]
+    children = info["children"]
+    full_lineage = info["lineage"] + [organism_taxon]
+    nearest_taxon, accessions = nearest_available_taxon(full_lineage)
+    nearest_organism_name = fetch_tax_info(nearest_taxon)["taxonomy_nodes"][0]["taxonomy"]["organism_name"]
+    accns = accessions
+    return accns
+    
+def nearest_genomes2(tax_or_name):
+    organism_tax_or_name = tax_or_name
+    info = fetch_tax_info(organism_tax_or_name)["taxonomy_nodes"][0]["taxonomy"]
+    organism_name = info["organism_name"]
+    organism_taxon = info["tax_id"]
+    children = info["children"]
+    full_lineage = info["lineage"] + [organism_taxon]
+    nearest_taxon, accessions = nearest_available_taxon(full_lineage)
+    nearest_organism_name = fetch_tax_info(nearest_taxon)["taxonomy_nodes"][0]["taxonomy"]["organism_name"]
+    accns = accessions
+    return accns
 
 if __name__ == "__main__":
     organism_tax_or_name = "Aleurina"
-    
+    #organism_tax_or_name = input()
+    #organism_tax_or_name = sys.argv()
     info = fetch_tax_info(organism_tax_or_name)["taxonomy_nodes"][0]["taxonomy"]
     organism_name = info["organism_name"]
     organism_taxon = info["tax_id"]
@@ -68,9 +92,9 @@ if __name__ == "__main__":
     nearest_taxon, accessions = nearest_available_taxon(full_lineage)
     nearest_organism_name = fetch_tax_info(nearest_taxon)["taxonomy_nodes"][0]["taxonomy"]["organism_name"]
 
-    
     print(f"query:             organism({organism_name}) taxon({organism_taxon})")
     print(f"nearest_available: organism({nearest_organism_name}) taxon({nearest_taxon})")
     print(f"found {len(accessions)} accessions.")
     print('-' * 20)
     pprint.pprint(accessions)
+    #print(accessions) #  eg testing
