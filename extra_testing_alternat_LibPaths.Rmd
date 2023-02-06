@@ -1,0 +1,28 @@
+---
+title: "extra_testing_alternat_LibPaths"
+author: "Emily Giroux"
+date: "2022-11-22"
+output: html_document
+---
+## This was to see if I could access the lib on the biocluster because python base not installed on the work laptop for RStudio Windows edition. I couldn't carryt he solution forward because of package hierarchy issues.
+```{r}
+# .libPaths()
+# myPaths <- .libPaths()
+# myPaths <- c(myPaths, "\\\\skyemci01-bicoe.efs.agr.gc.ca\\cfia-ottawa-fallowfield\\users\\girouxeml\\R\\x86_64-pc-linux-gnu-library\\4.2.1") 
+# add a new path
+# myPaths <- c(myPaths[3], myPaths[1], myPaths[2]) # switch them
+# .libPaths(myPaths) # reassign path
+
+# This assignment is what ended up working in the end!!!:
+# .libPaths("\\\\skyemci01-bicoe.efs.agr.gc.ca\\cfia-ottawa-fallowfield\\users\\girouxeml\\R\\x86_64-pc-linux-gnu-library\\4.2.1")
+```
+Old - before adding lib path that is on the biocluster:
+> myPaths
+[1] "/skyemci01-bicoe.efs.agr.gc.ca/cfia-ottawa-fallowfield/users/girouxeml/R/x86_64-pc-linux-gnu-library/4.2.1"    
+[2] "C:/Program Files/R/R-4.2.2/library"                                                                            
+[3] "C:/Users/girouxeml/AppData/Local/R/win-library/4.2"     
+    
+    
+To use the biolcuster path, myPaths needs to look like this:
+[1] "\\\\skyemci01-bicoe.efs.agr.gc.ca/cfia-ottawa-fallowfield/users/girouxeml/R/x86_64-pc-linux-gnu-library/4.2.1"
+[2] "C:/Program Files/R/R-4.2.2/library" 

@@ -70,9 +70,18 @@ refSeqDB <- paste(databasePath, "refSeq", sep = "/")
 gbDB <- paste(databasePath, "genbank", sep = "/")
 ensemblDB <- paste(databasePath, "ensembl", sep = "/")
 
-subfolder_names <- c("/refSeq", "/genbank", "/ensemble")
+subfolder_names <- c("/refSeq", "/genbank", "/ensembl")
 for (j in 1:length(subfolder_names)){
   folder <- dir.create(paste0(databasePath, subfolder_names[j]), showWarnings = TRUE, recursive = FALSE)
+}
+
+# species within genus genomes 
+generaGenomes <- paste(databasePath, "all_genomes_under_target_genera", sep = "/")
+refSeqDBGenus <- paste(generaGenomes, "refSeq", sep = "/")
+gbDBGenus <- paste(generaGenomes, "genbank", sep = "/")
+ensemblDBGenus <- paste(generaGenomes, "ensembl", sep = "/")
+for (j in 1:length(subfolder_names)){
+  folder <- dir.create(paste0(generaGenomes, subfolder_names[j]), showWarnings = TRUE, recursive = TRUE)
 }
 ```
 
@@ -213,7 +222,6 @@ generaList <- unique(targetMeta$Genus)
 nearestGensTbl <- as.data.table(generaList)
 ```
 
-
 ```{r}
 library("reticulate")
 nearestGenPyPath <- paste(scriptsPyPath, "nearest_genomes.py", sep = "/")
@@ -226,22 +234,51 @@ for(i in 1:nrow(nearestGensTbl)){
 }
 ```
 
-
+Save env image:
 ```{r}
-for(i in 1:length(generaList)){
-    info_r <- fetch_tax_info(generaList[i]) # info = fetch_tax_info(organism_tax_or_name)["taxonomy_nodes"][0]["taxonomy"]
-    organism_name_r <- info_r$taxonomy_nodes[[1]]$taxonomy$organism_name # organism_name = info["organism_name"]
-    organism_taxon_r <- info_r$taxonomy_nodes[[1]]$taxonomy$tax_id  # organism_taxon = info["tax_id"]
-    children_r <- info_r$taxonomy_nodes[[1]]$taxonomy$children # children = info["children"]
-    full_lineage_r <- paste(info_r$taxonomy_nodes[[1]]$taxonomy$lineage, organism_taxon_r) # full_lineage = info["lineage"] + [organism_taxon]
-    # nearest_taxon, accessions = nearest_available_taxon(full_lineage)
-    # nearest_organism_name = fetch_tax_info(nearest_taxon)["taxonomy_nodes"][0]["taxonomy"]["organism_name"]
-}
-
+save.image(paste(imagePath, imageA, sep = "/"))
 ```
 
+Ensembl Genome Retrieval: (Run as background job)
+```{r}
+library(biomartr)
+for(i in 1:nrow(nearestGensTbl)){
+  biomartr::getGenomeSet(db = "ensembl", nearestGensTbl$accns[i], reference = FALSE, release = NULL,
+                         clean_retrieval = TRUE, gunzip = FALSE, update = FALSE, path = ensemblDBGenus,
+                         assembly_type = "toplevel")
+    biomartr::getAssemblyStats(db = "ensembl", nearestGensTbl$accns[i], reference = FALSE, 
+                             type = "download", 
+                             path = ensemblDBGenus)
+  warnings()
+}
 
+for(i in 1:nrow(targetMeta)){
+  res <- biomartr::is.genome.available(db = "genbank", organism = targetMeta$SpeciesName[i])
+  targetMeta$genDB[i] <- res
+}
 
+gbGens <- targetMeta[targetMeta$genDB == "TRUE",]
+for(i in 1:nrow(gbGens)){
+  res <- biomartr::is.genome.available(db = "genbank", organism = gbGens$SpeciesName[i], details = TRUE)
+  gbGens$assmblyAccn[i] <- res
+}
+
+library(biomartr)
+for(i in 1:nrow(gbGens)){
+  biomartr::getGenomeSet(db = "genbank", gbGens$SpeciesName[i], reference = FALSE, release = NULL,
+                         clean_retrieval = TRUE, gunzip = FALSE, update = FALSE, path = gbDB,
+                         assembly_type = "toplevel")
+    biomartr::getAssemblyStats(db = "genbank", gbGens$SpeciesName[i], reference = FALSE, 
+                             type = "download", 
+                             path = gbDB)
+  warnings()
+}
+```
+
+Save env image:
+```{r}
+save.image(paste(imagePath, imageA, sep = "/"))
+```
 
 
 Obtain genomes from all species within a genus available from database:
