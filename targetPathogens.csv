@@ -1,0 +1,37 @@
+SpeciesName,otherName,CropSpp,Kingdom,TaxonID,Genus,GenusTaxID
+Alternaria brassicae,,Brassica sp.,Fungi,29911,Alternaria,5598
+Alternaria brassicicola,,Brassica sp.,Fungi,29001,Alternaria,5598
+Leptosphaeria maculans,,Brassica sp.,Fungi,5022,Leptosphaeria,5021
+Cercospora kikuchii,,Glycine sp.,Fungi,84275,Cercospora,29002
+Colletotrichum truncatum,,Glycine sp.,Fungi,5467,Colletotrichum,5455
+Fusarium sporotrichioides,,Glycine sp.,Fungi,5514,Fusarium,5506
+Peronospora manshurica,,Glycine sp.,Fungi,86334,Peronospora,70742
+Diaporthe phaseolorum var. sojae,Diaphorthe sojae,Glycine sp.,Fungi,165439,Diaporthe,36922
+Cephalosporium gramineum,,Triticum sp.,Fungi,259995,Hymenella,2081233
+Claviceps purpurea,,Triticum sp.,Fungi,5111,Claviceps,5110
+Sclerophthora macrospora,,Triticum sp.,Fungi,467176,Sclerophthora,467175
+Tilletia controversa,,Triticum sp.,Fungi,13291,Tilletia,13289
+Tilletia indica,,Triticum sp.,Fungi,43049,Tilletia,13289
+Tilletia tritici,,Triticum sp.,Fungi,13290,Tilletia,13289
+Urocystis agropyri,,Triticum sp.,Fungi,265355,Urocystis,63269
+Ustilago nuda,,Triticum sp.,Fungi,86802,Ustilago,5269
+Ustilago tritici,,Triticum sp.,Fungi,117174,Ustilago,5269
+Pseudomonas syringae pv. maculicola,,Brassica sp.,Bacteria,59511,Pseudomonas,286
+Pseudomonas viridiflava,,Brassica sp.,Bacteria,33069,Pseudomonas,286
+Xanthomonas campestris pv. campestris,,Brassica sp.,Bacteria,340,Xanthomonas,338
+Xanthomonas sp.,,Brassica sp.,Bacteria,338,Xanthomonas,338
+Curtobacterium flaccumfaciens,,Glycine sp.,Bacteria,2035,Curtobacterium,2034
+Curtobacterium flaccumfaciens pv. flaccumfaciens,,Glycine sp.,Bacteria,138532,Curtobacterium,2034
+Pseudomonas fuscovaginae,,Triticum sp.,Bacteria,50340,Pseudomonas,286
+Pseudomonas syringae,,Triticum sp.,Bacteria,317,Pseudomonas,286
+Pseudomonas syringae pv. coronafaciens,,Triticum sp.,Bacteria,235275,Pseudomonas,286
+Pseudomonas syringae pv. striafaciens,,Triticum sp.,Bacteria,235276,Pseudomonas,286
+Pseudomonas syringae pv. syringae,,Triticum sp.,Bacteria,321,Pseudomonas,286
+Xanthomonas sp.,,Triticum sp.,Bacteria,338,Xanthomonas,338
+Xanthomonas translucens pv. translucens,,Triticum sp.,Bacteria,134875,Xanthomonas,338
+Xanthomonas translucens pv. Undulosa,syn. Xanthomonas campestris pv. Undulosa,Triticum sp.,Bacteria,487909,Xanthomonas,338
+Arabis Mosaic Virus,,Glycine sp.,Virus,12271,Nepovirus,12270
+Tobacco Ringspot virus,,Glycine sp.,Virus,12282,Nepovirus,12270
+Tomato Ringspot Virus,,Glycine sp.,Virus,12280,Nepovirus,12270
+Barley Stripe Mosaic Virus,,Triticum sp.,Virus,12327,Hordeivirus,12326
+Wheat Streak Mosaic Virus,,Triticum sp.,Virus,31741,Tritimovirus,156207
