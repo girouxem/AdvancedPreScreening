@@ -35,34 +35,24 @@ lapply(scriptsList, source)
 scriptsPyPath <- root$make_fix_file(".")("pythonScripts")
 scriptsPy <- dir(root$find_file(scriptsPyPath, path = root$find_file()))
 scriptsPyList <- paste(scriptsPyPath, scriptsPy, sep = "//")
-# how to import python scripts into env, the way we do for r scripts using source?
-# lapply(scriptsPyList, source)
 
-imagePath <- root$make_fix_file(".")(paste("../r_environments", analysis, sep = "/"))
+imagePath <- root$make_fix_file(".")(paste("r_environments", analysis, sep = "/"))
 dir.create(imagePath, showWarnings = TRUE, recursive = TRUE)
 images <- dir(root$find_file(imagePath, path = root$find_file())) # if there is already a data file in this directory if not running this for the first time
 imagesList <- paste(imagePath, images, sep = "//")
 load(paste(imagesList, sep = "/")) # you need to bget more specific if you have more than one image saved in this directory
-
-# find environment of the conda path for this script - this one is for using the rstudio env:
-envPath <- root$make_fix_file(".")("../../prog/anaconda3/envs/rstudio")
-dir.create(envPath, showWarnings = TRUE, recursive = TRUE)
-envDirs <- dir(root$find_file(envPath, path = root$find_file()))
-envBinPath <- root$make_fix_file(".")(paste(envPath, "bin", sep = "/"))
-envBinList <- dir(root$find_file(envBinPath, path = root$find_file()))
-pythonPath <- paste(envBinPath, "python", sep = "/")
 ```
 
 Record the path to the environment images directory:
 ```{r importChptImage, echo=TRUE, eval=TRUE, include=FALSE, cache=TRUE}
 library("rprojroot")
-sharedPath <- root$make_fix_file(".")("../../PIRL_working_directory")
+sharedPath <- root$make_fix_file(".")("PIRL_working_directory")
 dir.create(sharedPath, showWarnings = TRUE, recursive = TRUE)
 sharedPathDirs <- dir(root$find_file(sharedPath, path = root$find_file()))
 sharedPathAn <- paste(sharedPath, analysis, sep = "/")
 dir.create(sharedPathAn, showWarnings = TRUE, recursive = TRUE)
 
-databasePath <- root$make_fix_file(".")(paste("../../Databases", analysis, sep = "/"))
+databasePath <- root$make_fix_file(".")(paste("Databases", analysis, sep = "/"))
 dir.create(databasePath, showWarnings = TRUE, recursive = TRUE)
 databasesPathDir <- dir(root$find_file(databasePath, path = root$find_file()))
 
@@ -95,8 +85,8 @@ Reference genomes to obtain for target species, read csv:
 library("rprojroot")
 library("data.table")
 targetCsv <- "targetPathogens.csv"
-csvPath <- paste(sharedPathAn, targetCsv, sep = "/")
-targetMeta <- data.table::fread(csvPath, sep = "auto", header = TRUE)
+targetCsvPath <- root$find_file(targetCsv)
+targetMeta <- data.table::fread(targetCsvPath, sep = "auto", header = TRUE)
 ```
 
 Need to obtain reference genomes for the target pathogens in the target Meta table:
@@ -112,6 +102,8 @@ biomartr::listNCBIDatabases(db = "all")
 RefSeq Genome Check:
 ```{r}
 library("biomartr")
+# set default timeout setting from 60s to at least 3000000 s before running any retrieval functions:
+options(timeout = 30000000)
 for(i in 1:nrow(targetMeta)){
   res <- biomartr::is.genome.available(db = "refseq", organism = targetMeta$SpeciesName[i])
   targetMeta$genRefSeq[i] <- res
@@ -121,6 +113,7 @@ for(i in 1:nrow(refSeqGens)){
   res <- biomartr::is.genome.available(db = "refseq", organism = refSeqGens$SpeciesName[i], details = TRUE)
   refSeqGens$assmblyAccn[i] <- res
 }
+save.image(paste(imagePath, imageA, sep = "/"))
 ```
 RefSeq Genome Download of most recent version. Set up as a background job (Don't copy results - just double-check download folder has all genomes downloaded):
 ```{r}
