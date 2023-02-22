@@ -59,8 +59,8 @@ databasesPathDir <- dir(root$find_file(databasePath, path = root$find_file()))
 refSeqDB <- paste(databasePath, "refSeq", sep = "/")
 gbDB <- paste(databasePath, "genbank", sep = "/")
 ensemblDB <- paste(databasePath, "ensembl", sep = "/")
-
-subfolder_names <- c("/refSeq", "/genbank", "/ensembl")
+viruSiteDB <- paste(databasePath, "viruSite", sep = "/")
+subfolder_names <- c("/refSeq", "/genbank", "/ensembl", "/viruSite")
 for (j in 1:length(subfolder_names)){
   folder <- dir.create(paste0(databasePath, subfolder_names[j]), showWarnings = TRUE, recursive = FALSE)
 }
@@ -70,6 +70,7 @@ generaGenomes <- paste(databasePath, "all_genomes_under_target_genera", sep = "/
 refSeqDBGenus <- paste(generaGenomes, "refSeq", sep = "/")
 gbDBGenus <- paste(generaGenomes, "genbank", sep = "/")
 ensemblDBGenus <- paste(generaGenomes, "ensembl", sep = "/")
+viruSiteDBGenus <- paste(generaGenomes, "viruSite", sep = "/")
 for (j in 1:length(subfolder_names)){
   folder <- dir.create(paste0(generaGenomes, subfolder_names[j]), showWarnings = TRUE, recursive = TRUE)
 }
@@ -137,7 +138,13 @@ Save env image:
 save.image(paste(imagePath, imageA, sep = "/"))
 ```
 
-Ensembl Genome Check:
+Ensembl Genome Check:    
+    
+** Note - if there is an error returned:    
+Error in if (!is.taxid(organism)) { :     
+  missing value where TRUE/FALSE needed    
+      
+This error not a script error, this is because there are no ENSEMBL geneomes available - if you look at the table , "targetMeta" you'll see that all the species have "FALSE" for the ensembl column. This error will occur in the next chunk as well.
 ```{r}
 for(i in 1:nrow(targetMeta)){
   res <- biomartr::is.genome.available(db = "ensembl", organism = targetMeta$SpeciesName[i])
@@ -208,6 +215,69 @@ library("data.table")
 otherDBs <- targetMeta[targetMeta$genDB == "FALSE" & targetMeta$genRefSeq == "FALSE" & targetMeta$genEMBL == "FALSE",]
 ```
 
+*** Over here 13Feb2023:    
+Looking at viruSite, genomes appear to be gathered from other NCBI databases - consider if biomartr script can access these?    
+biomartr::listNCBIDatabases(db = "all"):    
+
+*** Note - all the viral genomes we are missing in targetMeta are available in the virusite.org database - consider programmatic way to retrieve them    
+To do:    
+- write chunk to query the viruSite website to download genomes - in the mean time, download manually     
+- in mean time - need to add info to meta that viusite genomes are included 
+```{r}
+biomartr::listNCBIDatabases(db = "all")
+```
+
+```{r}
+virusGens <- targetMeta[targetMeta$Kingdom == "Virus"]
+virusGens$SpeciesName
+```
+Add virus genomes to metadata, and their paths - as these were manually downloaded from ViruSite.org:
+```{r}
+# list files in path
+
+```
+
+Finding genomes for the other targets:    
+Xanthomonas translucens pv. Undulosa    2021    NCBI Assembly ASM1730177v1    GenBank   GCA_017301775.1    RefSeq   GCF_017301775.1    Modifier   XtLr8 (strain)   URL:    ncbi.nlm.nih.gov/data-hub/genome/?taxon=487909    
+    
+Pseudomonas syringae pv. striafaciens   NCBI Assembly ASM369965v1   GenBank   GCA_003699655.1   RefSeq    GCF_003699655.1   Modifier  ICMP 4418 (strain)    URL:      ncbi.nlm.nih.gov/data-hub/genome/?taxon=235276    
+    
+Pseudomonas syringae pv. coronafaciens   NCBI Assembly ASM369995v1   GenBank   GCA_003699955.1   RefSeq    GCF_003699695.1   Modifier  ICMP 10052 (strain)    URL:      ncbi.nlm.nih.gov/data-hub/genome/?taxon=235275    
+    
+Urocystis agropyri NCBI TaxID 265355 - no complete genome assembly available - need to look more into possible resources for this species   
+    
+Tilletia tritici   NCBI Assembly Tca517_3.0   GenBank   GCA_004334575.1   RefSeq    N/A   Modifier  517 (strain)    URL:      ncbi.nlm.nih.gov/data-hub/genome/?taxon=13290    
+            
+Cephalosporium gramineum   NCBI TaxID 259995 - no complete genome assembly available - need to look more into possible resources for this species. Current scientific name [Hymenula] cerealis    
+    
+Diaporthe phaseolorum var. sojae   NCBI TaxID 165439 - no complete genome assembly available - need to look more into possible resources for this species.    
+        
+Peronospora manshurica   NCBI TaxID 86334 - no complete genome assembly available - need to look more into possible resources for this species.    
+             
+*** Over here!!!! 21Feb2023     
+
+GenBank Genome Retrieval: (Run as background job)
+```{r}
+library(biomartr)
+for(i in 1:nrow(gbGens)){
+  biomartr::getGenomeSet(db = "genbank", gbGens$SpeciesName[i], reference = FALSE, release = NULL,
+                         clean_retrieval = TRUE, gunzip = FALSE, update = FALSE, path = gbDB,
+                         assembly_type = "toplevel")
+    biomartr::getAssemblyStats(db = "genbank", gbGens$SpeciesName[i], reference = FALSE, 
+                             type = "download", 
+                             path = gbDB)
+  warnings()
+}
+```
+
+Save env image:
+```{r}
+save.image(paste(imagePath, imageA, sep = "/"))
+```
+
+
+
+
 Prepare for python function "nearest_genomes.py"
 ```{r}
 library("data.table")
@@ -215,10 +285,23 @@ generaList <- unique(targetMeta$Genus)
 nearestGensTbl <- as.data.table(generaList)
 ```
 
+
+*** Over here!!!! Continue here 13Feb2023 - get the right python path loaded to continue with the script.
+```{r}
+# find environment of the conda path for this script - this one is for using the rstudio env:
+envPath <- root$make_fix_file(".")("../../prog/anaconda3/envs/rstudio")
+dir.create(envPath, showWarnings = TRUE, recursive = TRUE)
+envDirs <- dir(root$find_file(envPath, path = root$find_file()))
+envBinPath <- root$make_fix_file(".")(paste(envPath, "bin", sep = "/"))
+envBinList <- dir(root$find_file(envBinPath, path = root$find_file()))
+pythonPath <- paste(envBinPath, "python", sep = "/")
+```
+
+
 ```{r}
 library("reticulate")
 nearestGenPyPath <- paste(scriptsPyPath, "nearest_genomes.py", sep = "/")
-use_python(pythonPath)
+# use_python(pythonPath)
 source_python(nearestGenPyPath)
 
 for(i in 1:nrow(nearestGensTbl)){
