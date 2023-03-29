@@ -100,6 +100,9 @@ biomartr::listNCBIDatabases(db = "all")
 # also try BarcodingR: https://besjournals.onlinelibrary.wiley.com/doi/full/10.1111/2041-210X.12682
 ```
 
+This is for interactive runs of the chunk - further down is the qsub.    
+To-do: specify that this is "interactive" in chunk options, set up chunk with setting to specify if running interactive script or qsub mode, then have the chunk run depending on the setting.    
+    
 RefSeq Genome Check:
 ```{r}
 library("biomartr")
@@ -116,6 +119,10 @@ for(i in 1:nrow(refSeqGens)){
 }
 save.image(paste(imagePath, imageA, sep = "/"))
 ```
+
+This is for interactive runs of the chunk - further down is the qsub.    
+To-do: specify that this is "interactive" in chunk options, set up chunk with setting to specify if running interactive script or qsub mode, then have the chunk run depending on the setting.    
+
 RefSeq Genome Download of most recent version. Set up as a background job (Don't copy results - just double-check download folder has all genomes downloaded):
 ```{r}
 options(timeout = 300000000)
@@ -132,11 +139,16 @@ for(i in 1:nrow(refSeqGens)){
 }
 ```
 
+This is for interactive runs of the chunk - further down is the qsub.    
+To-do: specify that this is "interactive" in chunk options, set up chunk with setting to specify if running interactive script or qsub mode, then have the chunk run depending on the setting.    
 
 Save env image:
 ```{r}
 save.image(paste(imagePath, imageA, sep = "/"))
 ```
+
+This is for interactive runs of the chunk - further down is the qsub.    
+To-do: specify that this is "interactive" in chunk options, set up chunk with setting to specify if running interactive script or qsub mode, then have the chunk run depending on the setting.    
 
 Ensembl Genome Check:    
     
@@ -157,6 +169,9 @@ for(i in 1:nrow(ensemblGens)){
 }
 ```
 
+This is for interactive runs of the chunk - further down is the qsub.    
+To-do: specify that this is "interactive" in chunk options, set up chunk with setting to specify if running interactive script or qsub mode, then have the chunk run depending on the setting.    
+
 Ensembl Genome Retrieval: (Run as background job)
 ```{r}
 library(biomartr)
@@ -171,10 +186,16 @@ for(i in 1:nrow(ensemblGens)){
 }
 ```
 
+This is for interactive runs of the chunk - further down is the qsub.    
+To-do: specify that this is "interactive" in chunk options, set up chunk with setting to specify if running interactive script or qsub mode, then have the chunk run depending on the setting.    
+
 Save env image:
 ```{r}
 save.image(paste(imagePath, imageA, sep = "/"))
 ```
+
+This is for interactive runs of the chunk - further down is the qsub.    
+To-do: specify that this is "interactive" in chunk options, set up chunk with setting to specify if running interactive script or qsub mode, then have the chunk run depending on the setting.    
     
 GenBank Genome Check:
 ```{r}
@@ -190,6 +211,9 @@ for(i in 1:nrow(gbGens)){
 }
 ```
 
+This is for interactive runs of the chunk - further down is the qsub.    
+To-do: specify that this is "interactive" in chunk options, set up chunk with setting to specify if running interactive script or qsub mode, then have the chunk run depending on the setting.    
+
 GenBank Genome Retrieval: (Run as background job)
 ```{r}
 library(biomartr)
@@ -204,6 +228,114 @@ for(i in 1:nrow(gbGens)){
 }
 ```
 
+Genome Check QSub - GenBank, RefSeq, Ensembl    
+    
+Note: to run qsub with more than 1 node, instead of running the bash.sh script in the prefix directory, run the command script directly with qsub specifications, i.e.,:    
+$ qsub -pe smp 8 -cwd A_Target_Genome_Check1.sub    
+Note that we don't include the "-S /bin/bash " because we're running an rscript, not a bash script  for this qsub.
+```{r}
+prefix <- "A_Target_Genome_Check"
+cmd <- paste('cmdA <- "source /isilon/cfia-ottawa-fallowfield/users/girouxeml/prog/anaconda3/bin/activate && conda activate /isilon/cfia-ottawa-fallowfield/users/girouxeml/prog/anaconda3/envs/rstudio" \n',
+             'system(cmdA) \n',
+             "load('", paste(imagePath, "/", imageA, sep = ""), "') \n",
+             'library("biomartr") \n',
+             'options(timeout = 30000000) \n',
+             'for(i in 1:nrow(targetMeta)){ \n',
+                  'res <- biomartr::is.genome.available(db = "genbank", organism = targetMeta$SpeciesName[i]) \n', 
+                  'targetMeta$genDB[i] <- res \n',      
+                  '}\n',
+             '\n',
+             'gbGens <- targetMeta[targetMeta$genDB == "TRUE",] \n',
+             'for(i in 1:nrow(gbGens)){\n',
+                  'res <- biomartr::is.genome.available(db = "genbank", organism = gbGens$SpeciesName[i], details = TRUE) \n',
+                  'gbGens$assmblyAccn[i] <- res \n',
+                  '} \n',
+             '\n',
+             "save.image('", paste(imagePath, "/", imageA, sep = ""), "') \n",
+             
+             'for(i in 1:nrow(targetMeta)){ \n',
+                  'res <- biomartr::is.genome.available(db = "ensembl", organism = targetMeta$SpeciesName[i]) \n',
+                  'targetMeta$genEMBL[i] <- res \n',
+                  '}\n',
+             'ensemblGens <- targetMeta[targetMeta$genEMBL == "TRUE",] \n',
+             '#for(i in 1:nrow(ensemblGens)){ \n',
+                  '#res <- biomartr::is.genome.available(db = "ensembl", organism = ensemblGens$SpeciesName[i], details = TRUE) \n',
+                  '#ensemblGens$assmblyAccn[i] <- res # Must comment out this line or script will fail because embl likely will not have genomes and leave this here so that I do not foget why\n',
+                  '#} \n',
+             '\n',
+             'for(i in 1:nrow(targetMeta)){ \n',
+                  'res <- biomartr::is.genome.available(db = "refseq", organism = targetMeta$SpeciesName[i]) \n',
+                  'targetMeta$genRefSeq[i] <- res \n',
+                  '} \n',
+             'refSeqGens <- targetMeta[targetMeta$genRefSeq == "TRUE",] \n',
+             'for(i in 1:nrow(refSeqGens)){ \n',
+                  'res <- biomartr::is.genome.available(db = "refseq", organism = refSeqGens$SpeciesName[i], details = TRUE) \n',
+                  'refSeqGens$assmblyAccn[i] <- res \n',
+                  '}\n',
+             '\n',
+             "save.image('", paste(imagePath, "/", imageA, sep = ""), "') \n",
+             '\n',
+             'cmdB <- "conda deactivate" \n',
+             'system(cmdB) \n',
+             sep = "")
+
+MakeRQsubs(cmd, prefix)
+```
+
+
+
+
+Genome Retrieval QSub - Genbank and RefSeq    
+Use this chunk to run the above 2 chunks as qsubs on the biocluster instead of interactively.   
+    
+Note: to run qsub with more than 1 node, instead of running the bash.sh script in the prefix directory, run the command script directly with qsub specifications, i.e.,:    
+$ qsub -pe smp 8 -cwd B_Retrieve_Target_Genomes1.sub    
+Note that we don't include the "-S /bin/bash " because we're running an rscript, not a bash script  for this qsub.
+```{r, echo=TRUE, eval=FALSE, include=TRUE, tidy=TRUE}
+prefix <- "B_Retrieve_Target_Genomes"
+cmd <- paste('cmdA <- "source /isilon/cfia-ottawa-fallowfield/users/girouxeml/prog/anaconda3/bin/activate && conda activate /isilon/cfia-ottawa-fallowfield/users/girouxeml/prog/anaconda3/envs/rstudio" \n',
+             'system(cmdA) \n'
+             "load('", paste(imagePath, "/", imageA, sep = ""), "') \n",
+             'library("biomartr") \n',
+             'options(timeout = 30000000) \n',
+             'for(i in 1:nrow(gbGens)){ \n',
+                  'biomartr::getGenomeSet(db = "genbank", gbGens$SpeciesName[i], 
+                        reference = FALSE, release = NULL, clean_retrieval = TRUE, 
+                        gunzip = FALSE, update = FALSE, path = gbDB, 
+                        assembly_type = "toplevel") \n',
+                  '\n',
+                  'biomartr::getAssemblyStats(db = "genbank", gbGens$SpeciesName[i], 
+                        reference = FALSE, type = "download", path = gbDB) \n',
+                  'warnings() \n',
+                  '} \n',
+             '\n',
+             "save.image('", paste(imagePath, "/", "fetchedGens_", imageA, sep = ""), "') \n",
+             '\n',
+             'for(i in 1:nrow(refSeqGens)){ \n',
+                  'biomartr::getGenomeSet(db = "refseq", refSeqGens$SpeciesName[i], 
+                        reference = FALSE, release = NULL, clean_retrieval = TRUE, 
+                        gunzip = FALSE, update = FALSE, path = refSeqDB, 
+                        assembly_type = "toplevel") \n',
+                  '\n',
+                  'biomartr::getAssemblyStats(db = "refseq", refSeqGens$SpeciesName[i], 
+                        reference = FALSE, type = "download", path = refSeqDB) \n',
+                  'warnings() \n',
+                  '} \n',
+             '\n',
+             "save.image('", paste(imagePath, "/", "fetchedGens_", imageA, sep = ""), "') \n",
+             '\n',
+             'cmdB <- "conda deactivate" \n',
+             'system(cmdB) \n',
+             sep = "")
+
+
+MakeRQsubs(cmd, prefix)
+```
+** Over here!!! 28Mar2023 To-do: need to import the saved environment generated in from the qsub run if those were run. 
+
+```{r}
+load(paste(imagePath, "/", "fetchedGens_", imageA, sep = ""))
+```
 Save env image:
 ```{r}
 save.image(paste(imagePath, imageA, sep = "/"))
