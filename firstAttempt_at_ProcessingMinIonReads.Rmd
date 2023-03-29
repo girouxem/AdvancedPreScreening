@@ -285,7 +285,7 @@ MakeRQsubs(cmd, prefix)
 
 
 
-Genome Retrieval QSub - Genbank and RefSeq    
+Genome Retrieval QSub - Genbank and RefSeq (EMBL ommitted since no genomes avaialbe and including it would break script)    
 Use this chunk to run the above 2 chunks as qsubs on the biocluster instead of interactively.   
     
 Note: to run qsub with more than 1 node, instead of running the bash.sh script in the prefix directory, run the command script directly with qsub specifications, i.e.,:    
@@ -294,7 +294,7 @@ Note that we don't include the "-S /bin/bash " because we're running an rscript,
 ```{r, echo=TRUE, eval=FALSE, include=TRUE, tidy=TRUE}
 prefix <- "B_Retrieve_Target_Genomes"
 cmd <- paste('cmdA <- "source /isilon/cfia-ottawa-fallowfield/users/girouxeml/prog/anaconda3/bin/activate && conda activate /isilon/cfia-ottawa-fallowfield/users/girouxeml/prog/anaconda3/envs/rstudio" \n',
-             'system(cmdA) \n'
+             'system(cmdA) \n',
              "load('", paste(imagePath, "/", imageA, sep = ""), "') \n",
              'library("biomartr") \n',
              'options(timeout = 30000000) \n',
@@ -322,7 +322,7 @@ cmd <- paste('cmdA <- "source /isilon/cfia-ottawa-fallowfield/users/girouxeml/pr
                   'warnings() \n',
                   '} \n',
              '\n',
-             "save.image('", paste(imagePath, "/", "fetchedGens_", imageA, sep = ""), "') \n",
+             "save.image('", paste(imagePath, "/fetchedGens_", imageA, sep = ""), "') \n",
              '\n',
              'cmdB <- "conda deactivate" \n',
              'system(cmdB) \n',
